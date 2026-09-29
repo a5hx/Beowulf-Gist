@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Gist</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Gist</h1>
+      <label class="row"><input type="checkbox" id="enabled" /> Mark low-value results</label>
+      <label class="row"><input type="checkbox" id="greenDot" /> Green dot on Solid results</label>
+      <button id="pause" type="button" hidden></button>
+      <p id="count" class="muted"></p>
+      <section id="coverage">
+        <p class="muted">Some sites block our server. Gist can read those result pages on this device instead. It sends no cookies and uploads nothing.</p>
+        <button id="grant" type="button">Enable full coverage</button>
+        <p id="granted" hidden>Full coverage is on.</p>
+      </section>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

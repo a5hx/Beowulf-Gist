@@ -1,0 +1,10 @@
+:root { color-scheme: light dark; --bg: #fff; --fg: #111827; --muted: #6b7280; --accent: #2563eb; }
+@media (prefers-color-scheme: dark) { :root { --bg: #111827; --fg: #f9fafb; --muted: #9ca3af; } }
+body { margin: 0; width: 300px; background: var(--bg); color: var(--fg); font: 14px/1.5 system-ui, sans-serif; }
+main { padding: 16px; display: grid; gap: 10px; }
+h1 { margin: 0; font-size: 18px; }
+.row { display: flex; gap: 8px; align-items: center; }
+.muted { color: var(--muted); margin: 0; font-size: 12px; }
+button { font: inherit; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--muted); background: transparent; color: var(--fg); cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#grant { border-color: var(--accent); color: var(--accent); }

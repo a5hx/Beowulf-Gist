@@ -1,0 +1,44 @@
+import { serve } from '@hono/node-server';
+import { LAYER1_VERSION, scoreHtml } from '@gist/layer1';
+import { createApp } from './app';
+import { createClientIp } from './clientIp';
+import { connect, migrate } from './db';
+import { readEnv } from './env';
+import { fetchPage, fetchText } from './fetcher/fetchPage';
+import { createRobotsChecker } from './fetcher/robots';
+import { createSafeAgent, isPublicAddress } from './fetcher/ssrf';
+import { FetchQueue } from './queue';
+import { createRateLimiter } from './rateLimit';
+import { createRepo } from './repo';
+import { createScoreService } from './scoreService';
+
+const env = readEnv(process.env);
+const sql = connect(env.databaseUrl);
+await migrate(sql);
+const repo = createRepo(sql);
+
+const dispatcher = createSafeAgent(isPublicAddress);
+const userAgent = `GistBot/1.0 (+${env.botInfoUrl})`;
+const robotsAllowed = createRobotsChecker({
+  fetchText: (url) => fetchText(url, { dispatcher, userAgent, policy: isPublicAddress }),
+  now: Date.now,
+});
+
+const scores = createScoreService({
+  repo,
+  queue: new FetchQueue({ global: 20, perDomain: 2 }),
+  fetchPage: (url) => fetchPage(url, { dispatcher, userAgent, policy: isPublicAddress, robotsAllowed }),
+  score: scoreHtml,
+  now: () => new Date(),
+  version: LAYER1_VERSION,
+});
+
+const app = createApp({
+  scores,
+  repo,
+  limiter: createRateLimiter(),
+  clientIp: createClientIp(env.clientIpHeader),
+  log: (line) => console.log(line),
+});
+
+serve({ fetch: app.fetch, port: env.port }, (info) => console.log(`gist server on :${info.port} (layer1 ${LAYER1_VERSION})`));

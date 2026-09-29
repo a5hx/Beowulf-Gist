@@ -1,0 +1,20 @@
+{
+  "version": "7bdedb8873c7",
+  "domains": [],
+  "selectors": {
+    "version": 1,
+    "result": "#rso div.MjjYud, #rso div.g",
+    "title": "h3",
+    "exclude": [
+      "#tads",
+      "#tadsb",
+      "#bottomads",
+      "[data-text-ad]",
+      "g-scrolling-carousel",
+      "g-section-with-header",
+      "related-question-pair",
+      "[data-initq]",
+      "block-component"
+    ]
+  }
+}
