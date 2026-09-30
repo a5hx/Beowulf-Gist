@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createMatcher, registrableDomain } from '../src/domain';
+import { createMatcher, indexDomain, registrableDomain } from '../src/domain';
 import type { ListEntry } from '../src/types';
 
 const entry = (match: string, matchLevel: 'domain' | 'host', kind: 'farm' | 'human'): ListEntry => ({
@@ -36,5 +36,13 @@ describe('createMatcher', () => {
   it('returns null when nothing matches or input is invalid', () => {
     expect(match('https://unknown.org/')).toBeNull();
     expect(match('garbage')).toBeNull();
+  });
+});
+
+describe('indexDomain (final review #6)', () => {
+  it('treats PSL private suffixes as separate sites (blogspot, github.io)', () => {
+    expect(indexDomain('https://alice.blogspot.com/p')).toBe('alice.blogspot.com');
+    expect(indexDomain('https://bob.github.io/x')).toBe('bob.github.io');
+    expect(indexDomain('https://www.bbc.co.uk/news')).toBe('bbc.co.uk');
   });
 });

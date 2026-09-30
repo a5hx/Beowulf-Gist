@@ -1,5 +1,5 @@
 import { combine } from '@gist/combiner';
-import type { FlagVerdict, Layer1Result, ListEntry, ScoreItem, Verdict } from '@gist/shared';
+import type { FlagVerdict, Layer1Result, Layer3Result, ListEntry, ScoreItem, Verdict } from '@gist/shared';
 import type { Api } from './api';
 import type { Fallback } from './fallback';
 
@@ -15,11 +15,12 @@ export function createOrchestrator(d: {
   fallback: Fallback;
   sleep: (ms: number) => Promise<void>;
 }) {
-  const cache = new Map<string, Layer1Result>();
+  const cache = new Map<string, { layer1: Layer1Result; layer3: Layer3Result | null }>();
 
   async function verdict(url: string): Promise<Verdict> {
-    const layer1 = cache.get(url) ?? (await d.fallback.cached(url));
-    return combine({ layer1, entry: d.match(url), override: await d.override(url), greenDot: await d.greenDot() });
+    const hit = cache.get(url);
+    const layer1 = hit?.layer1 ?? (await d.fallback.cached(url));
+    return combine({ layer1, layer3: hit?.layer3 ?? null, entry: d.match(url), override: await d.override(url), greenDot: await d.greenDot() });
   }
 
   async function verdicts(urls: string[]): Promise<Record<string, Verdict>> {
@@ -43,6 +44,7 @@ export function createOrchestrator(d: {
     let pending: string[] = [];
     for (const u of urls) if (!cache.has(u) && !(await d.fallback.cached(u))) pending.push(u);
     const failed: string[] = [];
+    let readyThisRun = 0;
 
     for (let attempt = 0; attempt <= POLL_DELAYS.length && pending.length > 0; attempt++) {
       if (attempt > 0) await d.sleep(POLL_DELAYS[attempt - 1]!);
@@ -58,13 +60,39 @@ export function createOrchestrator(d: {
         const r = results[u];
         if (r?.status === 'ready') {
           if (cache.size > 2000) cache.clear();
-          cache.set(u, r.layer1);
+          cache.set(u, { layer1: r.layer1, layer3: r.layer3 ?? null });
           ready.push(u);
+          readyThisRun++;
         } else if (r?.status === 'failed') failed.push(u);
         else next.push(u);
       }
       if (ready.length > 0 && !(await safeEmit(ready))) return;
       pending = next;
+    }
+
+    // Originality is computed at read time, so a page read before its siblings were indexed came back without
+    // evidence. If siblings became ready during this run, ask once more for the pages that lacked evidence.
+    if (readyThisRun > 1) {
+      const recheck = urls.filter((u) => {
+        const hit = cache.get(u);
+        return !!hit && hit.layer3?.evidence !== 'enough';
+      });
+      const improved: string[] = [];
+      try {
+        for (let i = 0; i < recheck.length; i += BATCH) {
+          const res = await d.api.score(recheck.slice(i, i + BATCH));
+          for (const u of recheck.slice(i, i + BATCH)) {
+            const r = res[u];
+            if (r?.status === 'ready' && r.layer3?.evidence === 'enough') {
+              cache.set(u, { layer1: r.layer1, layer3: r.layer3 });
+              improved.push(u);
+            }
+          }
+        }
+      } catch {
+        // offline: keep what we have
+      }
+      if (improved.length > 0 && !(await safeEmit(improved))) return;
     }
 
     if (failed.length > 0 && (await d.fallback.enabled())) {
@@ -82,7 +110,7 @@ export function createOrchestrator(d: {
     if (!cache.has(url) && !(await d.fallback.cached(url))) {
       try {
         const r = (await d.api.score([url]))[url];
-        if (r?.status === 'ready') cache.set(url, r.layer1);
+        if (r?.status === 'ready') cache.set(url, { layer1: r.layer1, layer3: r.layer3 ?? null });
       } catch {
         // offline: fall back to whatever list/override info we have
       }

@@ -1,0 +1,10 @@
+{
+  "name": "@gist/layer3",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": { ".": "./src/index.ts", "./testing": "./test/words.ts" },
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "dependencies": { "@gist/shared": "workspace:*" }
+}

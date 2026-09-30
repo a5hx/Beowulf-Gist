@@ -1,10 +1,10 @@
 import { combine, verdictFor } from '@gist/combiner';
-import type { Layer1Result } from '@gist/shared';
+import type { Layer1Result, Layer3Result } from '@gist/shared';
 
 export type Label = 'slop' | 'thin' | 'ok' | 'solid';
 export const LABELS: Label[] = ['slop', 'thin', 'ok', 'solid'];
 export type LabelRow = { id: string; url: string; label: Label; snapshot: string; labeledAt: string };
-export type Scored = { id: string; url: string; label: Label; grade: number };
+export type Scored = { id: string; url: string; label: Label; grade: number; originalityEvidence?: boolean; copyEvidence?: boolean };
 export type Metrics = {
   n: number;
   perLabel: Record<Label, { precision: number | null; recall: number | null; support: number }>;
@@ -12,6 +12,7 @@ export type Metrics = {
   wouldDim: { falsePositiveRate: number | null; falsePositives: Scored[] };
   /** Pages you labeled ok/solid that the current strict rule still marks with a Thin tag (grade < 60). */
   wouldTag: { rate: number | null; pages: Scored[] };
+  originality: { withEvidence: number; dimmedByCopy: Record<Label, number> };
 };
 
 export function parseLabels(text: string): LabelRow[] {
@@ -26,9 +27,9 @@ export function parseLabels(text: string): LabelRow[] {
   return rows;
 }
 
-/** Layer-1-only grade with no floor, i.e. what rule B would act on. */
-export function rawGrade(layer1: Layer1Result): number {
-  return combine({ layer1, entry: null, override: null, greenDot: false, lowConfidenceFloor: 'Slop' }).grade ?? 0;
+/** Layer-1(+3)-only grade with no floor, i.e. what rule B would act on. */
+export function rawGrade(layer1: Layer1Result, layer3: Layer3Result | null = null): number {
+  return combine({ layer1, layer3, entry: null, override: null, greenDot: false, lowConfidenceFloor: 'Slop' }).grade ?? 0;
 }
 
 export function predictedLabel(grade: number): Label {
@@ -51,8 +52,12 @@ export function computeMetrics(rows: Scored[]): Metrics {
   const good = rows.filter((r) => r.label === 'ok' || r.label === 'solid');
   const falsePositives = good.filter((r) => r.grade < 40);
   const tagged = good.filter((r) => r.grade < 60);
+  const dimmedByCopy = { slop: 0, thin: 0, ok: 0, solid: 0 } as Record<Label, number>;
+  for (const r of rows) if (r.copyEvidence) dimmedByCopy[r.label]++;
+  const originality = { withEvidence: rows.filter((r) => r.originalityEvidence).length, dimmedByCopy };
   return {
     n: rows.length,
+    originality,
     perLabel,
     wouldDim: { falsePositiveRate: good.length ? falsePositives.length / good.length : null, falsePositives },
     wouldTag: { rate: good.length ? tagged.length / good.length : null, pages: tagged },
@@ -71,5 +76,7 @@ export function formatReport(m: Metrics): string {
   for (const fp of m.wouldDim.falsePositives) lines.push(`  FP  grade ${fp.grade}  [${fp.label}]  ${fp.url}`);
   lines.push('', `Thin-tag rate on ok/solid pages (current rule): ${pct(m.wouldTag.rate)}`);
   for (const t of m.wouldTag.pages) lines.push(`  TAG grade ${t.grade}  [${t.label}]  ${t.url}`);
+  const d = m.originality.dimmedByCopy;
+  lines.push('', `Originality evidence: ${m.originality.withEvidence} of ${m.n} rows; dimmed by copy evidence: slop ${d.slop}, thin ${d.thin}, ok ${d.ok}, solid ${d.solid}`);
   return lines.join('\n');
 }

@@ -25,7 +25,7 @@ beforeAll(async () => {
 });
 afterAll(async () => db.stop());
 beforeEach(async () => {
-  await sql`TRUNCATE page_scores, fetch_failures, flags, devices, list_versions, events`;
+  await sql`TRUNCATE page_scores, fetch_failures, flags, devices, list_versions, events, fingerprints, originality_memo`;
 });
 
 describe('repo', () => {

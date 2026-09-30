@@ -14,6 +14,9 @@ importers:
       '@gist/layer1':
         specifier: workspace:*
         version: link:packages/layer1
+      '@gist/layer3':
+        specifier: workspace:*
+        version: link:packages/layer3
       '@gist/shared':
         specifier: workspace:*
         version: link:packages/shared
@@ -60,9 +63,15 @@ importers:
 
   apps/server:
     dependencies:
+      '@gist/combiner':
+        specifier: workspace:*
+        version: link:../../packages/combiner
       '@gist/layer1':
         specifier: workspace:*
         version: link:../../packages/layer1
+      '@gist/layer3':
+        specifier: workspace:*
+        version: link:../../packages/layer3
       '@gist/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -110,6 +119,12 @@ importers:
       linkedom:
         specifier: ^0.18.5
         version: 0.18.13
+
+  packages/layer3:
+    dependencies:
+      '@gist/shared':
+        specifier: workspace:*
+        version: link:../shared
 
   packages/shared:
     dependencies:

@@ -45,7 +45,20 @@ export type FailReason =
   | 'ssrf'
   | 'parse';
 
+export type Layer3Result = {
+  layer3Version: string;
+  /** 'fingerprint' today; 'llm' is reserved for a future Pro judge. */
+  method: 'fingerprint';
+  evidence: 'enough' | 'insufficient';
+  originality: DimensionResult | null;
+  /** Share (0..1) of own fingerprints matched on other domains, counting only matches that are not provably newer. */
+  coverage: number;
+  /** Matched domains, most matches first, max 5. */
+  otherDomains: string[];
+  computedAt: string;
+};
+
 export type ScoreItem =
-  | { status: 'ready'; layer1: Layer1Result }
+  | { status: 'ready'; layer1: Layer1Result; layer3?: Layer3Result }
   | { status: 'pending' }
   | { status: 'failed'; reason: FailReason };

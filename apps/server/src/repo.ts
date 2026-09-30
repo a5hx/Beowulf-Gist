@@ -1,4 +1,5 @@
-import type { FailReason, Layer1Result, ListBundle } from '@gist/shared';
+import { BOILERPLATE_DOMAINS, type FingerprintMatches } from '@gist/layer3';
+import type { FailReason, Layer1Result, Layer3Result, ListBundle } from '@gist/shared';
 import type { Sql } from './db';
 
 export type StoredScore = {
@@ -14,6 +15,9 @@ export type FlagSummaryRow = { domain: string; slop: number; fine: number; devic
 export type FailureSummaryRow = { domain: string; reason: string; count: number };
 export type EventSummaryRow = { configVersion: number; event: string; count: number };
 
+/** Bounds the table on huge pages (~1 fingerprint per 20 words → 5000 ≈ 100k words). */
+export const MAX_FINGERPRINTS_PER_PAGE = 5000;
+
 export interface Repo {
   getScores(urls: string[], layer1Version: string): Promise<Map<string, StoredScore>>;
   putScore(s: StoredScore): Promise<void>;
@@ -28,6 +32,11 @@ export interface Repo {
   flagSummary(): Promise<FlagSummaryRow[]>;
   failureSummary(days: number): Promise<FailureSummaryRow[]>;
   eventSummary(days: number): Promise<EventSummaryRow[]>;
+  replaceFingerprints(urlNorm: string, domain: string, publishedAt: Date | null, hashes: number[], fetchedAt: Date, meta?: { thin?: boolean; canonical?: string | null }): Promise<void>;
+  fingerprintMatches(urlNorm: string): Promise<FingerprintMatches | null>;
+  getOriginalityMemo(urls: string[], version: string, maxAgeMs: number): Promise<Map<string, Layer3Result>>;
+  putOriginalityMemo(urlNorm: string, version: string, result: Layer3Result, computedAt: Date): Promise<void>;
+  pruneFingerprints(olderThanDays: number): Promise<{ fingerprints: number; memos: number }>;
 }
 
 type ScoreRow = { url_norm: string; layer1_version: string; status: 'ready' | 'failed'; result: Layer1Result | null; fail_reason: FailReason | null; fetched_at: Date };
@@ -138,6 +147,69 @@ export function createRepo(sql: Sql): Repo {
         GROUP BY config_version, event
         ORDER BY config_version, event`;
       return rows.map((r) => ({ configVersion: r.config_version, event: r.event, count: r.count }));
+    },
+
+    async replaceFingerprints(urlNorm, domain, publishedAt, hashes, fetchedAt, meta = {}) {
+      const rows = [...new Set(hashes)].slice(0, MAX_FINGERPRINTS_PER_PAGE).map((hash) => ({
+        url_norm: urlNorm, hash: String(hash), domain, published_at: publishedAt, fetched_at: fetchedAt,
+        thin: meta.thin ?? false, canonical: meta.canonical ?? null,
+      }));
+      await sql.begin(async (tx) => {
+        await tx`DELETE FROM fingerprints WHERE url_norm = ${urlNorm}`;
+        for (let i = 0; i < rows.length; i += 1000) {
+          await tx`INSERT INTO fingerprints ${tx(rows.slice(i, i + 1000) as never, 'url_norm', 'hash', 'domain', 'published_at', 'fetched_at', 'thin', 'canonical')}`;
+        }
+      });
+    },
+
+    async fingerprintMatches(urlNorm) {
+      const [own] = await sql<{ n: number; domain: string | null; published_at: Date | null; canonical: string | null }[]>`
+        SELECT count(*)::int AS n, min(domain) AS domain, min(published_at) AS published_at, min(canonical) AS canonical
+        FROM fingerprints WHERE url_norm = ${urlNorm}`;
+      if (!own || own.n === 0 || !own.domain) return null;
+      const rows = await sql<{ hash: string; domain: string; published_at: Date | null; thin: boolean }[]>`
+        WITH own AS (SELECT hash FROM fingerprints WHERE url_norm = ${urlNorm}),
+        boiler AS (
+          SELECT f.hash FROM fingerprints f JOIN own USING (hash)
+          GROUP BY f.hash HAVING count(DISTINCT f.domain) > ${BOILERPLATE_DOMAINS})
+        SELECT DISTINCT f.hash::text AS hash, f.domain, f.published_at, f.thin
+        FROM fingerprints f JOIN own USING (hash)
+        WHERE f.domain <> ${own.domain} AND f.hash NOT IN (SELECT hash FROM boiler)
+          -- rel=canonical: declared copies (either direction, or a shared canonical) are not copying
+          AND f.canonical IS DISTINCT FROM ${urlNorm}
+          AND (${own.canonical}::text IS NULL OR (f.url_norm <> ${own.canonical} AND f.canonical IS DISTINCT FROM ${own.canonical}))`;
+      return {
+        own: { count: own.n, domain: own.domain, publishedAt: own.published_at },
+        matches: rows.map((r) => ({ hash: Number(r.hash), domain: r.domain, publishedAt: r.published_at, thin: r.thin })),
+      };
+    },
+
+    async getOriginalityMemo(urls, version, maxAgeMs) {
+      const out = new Map<string, Layer3Result>();
+      if (urls.length === 0) return out;
+      const rows = await sql<{ url_norm: string; result: Layer3Result }[]>`
+        SELECT url_norm, result FROM originality_memo
+        WHERE url_norm = ANY(${sql.array(urls)}::text[]) AND layer3_version = ${version}
+          AND computed_at > now() - (${maxAgeMs} * interval '1 millisecond')`;
+      for (const r of rows) out.set(r.url_norm, r.result);
+      return out;
+    },
+
+    async putOriginalityMemo(urlNorm, version, result, computedAt) {
+      await sql`
+        INSERT INTO originality_memo (url_norm, layer3_version, result, computed_at)
+        VALUES (${urlNorm}, ${version}, ${sql.json(result as never)}, ${computedAt})
+        ON CONFLICT (url_norm, layer3_version) DO UPDATE SET result = EXCLUDED.result, computed_at = EXCLUDED.computed_at`;
+    },
+
+    async pruneFingerprints(olderThanDays) {
+      const [f] = await sql<{ n: number }[]>`
+        WITH d AS (DELETE FROM fingerprints WHERE fetched_at < now() - (${olderThanDays} * interval '1 day') RETURNING 1)
+        SELECT count(*)::int AS n FROM d`;
+      const [m] = await sql<{ n: number }[]>`
+        WITH d AS (DELETE FROM originality_memo WHERE computed_at < now() - (${olderThanDays} * interval '1 day') RETURNING 1)
+        SELECT count(*)::int AS n FROM d`;
+      return { fingerprints: f?.n ?? 0, memos: m?.n ?? 0 };
     },
   };
 }

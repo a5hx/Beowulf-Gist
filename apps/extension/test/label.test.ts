@@ -54,7 +54,7 @@ describe('nutrition label', () => {
     expect(s.querySelector('.low')?.textContent).toBe('low confidence');
     const rows = [...s.querySelectorAll<HTMLElement>('.row')];
     expect(rows.map((x) => x.dataset.dim)).toEqual(['info', 'originality', 'human', 'siteBehavior', 'monetization']);
-    expect(rows[1]!.querySelector<HTMLElement>('.na')!.title).toBe('Needs deep scan (Pro)');
+    expect(rows[1]!.querySelector<HTMLElement>('.na')!.title).toBe('Not enough comparisons yet');
     expect(rows[0]!.querySelector<HTMLElement>('.fill')!.style.width).toBe('20%');
   });
 

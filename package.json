@@ -19,6 +19,7 @@
   "devDependencies": {
     "@gist/combiner": "workspace:*",
     "@gist/layer1": "workspace:*",
+    "@gist/layer3": "workspace:*",
     "@gist/shared": "workspace:*",
     "@types/node": "^20.17.10",
     "happy-dom": "^15.11.7",

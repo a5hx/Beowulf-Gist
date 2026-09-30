@@ -53,7 +53,7 @@ export function buildCard(url: string, v: Verdict, deps: RenderDeps): HTMLElemen
     const score = v.dimensions[key];
     if (score === null) {
       const na = el('span', 'na', '—');
-      na.title = key === 'originality' ? 'Needs deep scan (Pro)' : 'Not available for this page';
+      na.title = key === 'originality' ? 'Not enough comparisons yet' : 'Not available for this page';
       row.append(na, el('span'));
     } else {
       const bar = el('span', 'bar');

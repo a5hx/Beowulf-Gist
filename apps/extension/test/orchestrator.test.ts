@@ -118,4 +118,37 @@ describe('orchestrator', () => {
     const t = setup([], { overrides: { [FARM]: 'fine' } });
     expect(await t.orch.verdict(FARM)).toMatchObject({ action: 'none', userOverride: 'fine' });
   });
+  it('passes the server layer3 into verdicts (originality bar filled)', async () => {
+    const layer3 = {
+      layer3Version: 't', method: 'fingerprint' as const, evidence: 'enough' as const, coverage: 0.2,
+      otherDomains: ['a.com', 'b.com'], originality: { score: 83, signals: [] }, computedAt: '2026-09-30T00:00:00.000Z',
+    };
+    const t = setup([{ [OK]: { status: 'ready', layer1: layer1(70), layer3 } }]);
+    await t.orch.run([OK], t.emit);
+    expect(t.emits.at(-1)![OK]!.dimensions.originality).toBe(83);
+    expect((await t.orch.verdict(OK)).dimensions.originality).toBe(83);
+  });
+
+  it('re-asks once for originality after siblings became ready in the same run (final review #7)', async () => {
+    const B = 'https://sibling.com/b';
+    const l3 = (evidence: 'enough' | 'insufficient') => ({
+      layer3Version: 't', method: 'fingerprint' as const, evidence, coverage: 0.2, otherDomains: ['a.com', 'b.com'],
+      originality: evidence === 'enough' ? { score: 83, signals: [] } : null, computedAt: '2026-09-30T00:00:00.000Z',
+    });
+    const t = setup([
+      { [OK]: { status: 'ready', layer1: layer1(70), layer3: l3('insufficient') }, [B]: { status: 'pending' } },
+      { [B]: { status: 'ready', layer1: layer1(70), layer3: l3('insufficient') } },
+      { [OK]: { status: 'ready', layer1: layer1(70), layer3: l3('enough') }, [B]: { status: 'ready', layer1: layer1(70), layer3: l3('insufficient') } },
+    ]);
+    await t.orch.run([OK, B], t.emit);
+    expect(t.api.score).toHaveBeenCalledTimes(3);
+    expect(t.api.score.mock.calls[2]![0]).toEqual([OK, B]);
+    expect(t.emits.at(-1)![OK]!.dimensions.originality).toBe(83);
+  });
+
+  it('does not re-ask when nothing new became ready', async () => {
+    const t = setup([{ [OK]: { status: 'ready', layer1: layer1(70) } }]);
+    await t.orch.run([OK], t.emit);
+    expect(t.api.score).toHaveBeenCalledTimes(1);
+  });
 });
