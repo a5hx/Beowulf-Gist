@@ -1,0 +1,19 @@
+{
+  "name": "@gist/extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "postinstall": "wxt prepare",
+    "typecheck": "wxt prepare && tsc --noEmit"
+  },
+  "dependencies": {
+    "@gist/combiner": "workspace:*",
+    "@gist/layer1": "workspace:*",
+    "@gist/shared": "workspace:*"
+  },
+  "devDependencies": { "happy-dom": "^15.11.7", "wxt": "0.20.6" }
+}

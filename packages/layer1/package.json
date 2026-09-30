@@ -1,0 +1,10 @@
+{
+  "name": "@gist/layer1",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": { ".": "./src/index.ts", "./fixtures": "./test/fixtures.ts" },
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "dependencies": { "@gist/shared": "workspace:*", "linkedom": "^0.18.5" }
+}

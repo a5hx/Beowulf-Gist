@@ -1,0 +1,19 @@
+name: google-layout-check
+on:
+  schedule: [{ cron: "17 6 * * *" }]
+  workflow_dispatch: {}
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      # Exit 2 = Google served a CAPTCHA (common on CI IPs): inconclusive, so warn instead of failing.
+      - run: |
+          code=0; pnpm layout:check || code=$?
+          if [ "$code" -eq 2 ]; then echo "::warning::Google served a CAPTCHA; layout check inconclusive"; exit 0; fi
+          exit "$code"

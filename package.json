@@ -1,0 +1,31 @@
+{
+  "name": "gist",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.10"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "pnpm -r typecheck && tsc -p tsconfig.json",
+    "lists:build": "tsx scripts/lists-build.ts",
+    "lists:publish": "pnpm --filter @gist/server lists:publish",
+    "review": "pnpm --filter @gist/server review",
+    "eval": "tsx eval/run-eval.ts",
+    "eval:snapshot": "tsx eval/snapshot.ts",
+    "layout:check": "tsx scripts/layout-check.ts"
+  },
+  "devDependencies": {
+    "@gist/combiner": "workspace:*",
+    "@gist/layer1": "workspace:*",
+    "@gist/shared": "workspace:*",
+    "@types/node": "^20.17.10",
+    "happy-dom": "^15.11.7",
+    "playwright": "^1.49.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8",
+    "zod": "^3.24.1"
+  }
+}
