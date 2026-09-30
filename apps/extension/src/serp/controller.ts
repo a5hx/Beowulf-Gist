@@ -45,7 +45,7 @@ export function createSerpController(d: ControllerDeps) {
     const found = readResults(d.root, d.selectors, d.base);
     if (found.length === 0) {
       // Layout drift: results container exists but nothing matched. Do nothing to the page, report once.
-      if (!reportedNoMatch && byUrl.size === 0 && d.root.querySelector('#rso')) {
+      if (!reportedNoMatch && byUrl.size === 0 && d.root.querySelector(d.selectors.page ?? '#rso')) {
         reportedNoMatch = true;
         d.reportNoMatches(d.selectors.version);
       }

@@ -47,6 +47,34 @@ describe('flagSender', () => {
     expect(await kv.get('flagQueue')).toEqual([flag]);
   });
 
+  it('does not lose flags sent concurrently while offline', async () => {
+    const kv = memoryKV();
+    const api = { registerDevice: vi.fn(async () => { throw new Error('offline'); }), flag: vi.fn() };
+    const sender = createFlagSender({ kv, api });
+    await Promise.all([1, 2, 3].map((i) => sender.send({ url: `https://a.com/${i}`, verdict: 'fine' })));
+    expect(((await kv.get('flagQueue')) as unknown[]).length).toBe(3);
+  });
+
+  it('keeps a flag sent while a flush is in progress', async () => {
+    const kv = memoryKV({ device: { key: 'k'.repeat(64), registered: true }, flagQueue: [flag] });
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const api = {
+      registerDevice: vi.fn(async () => {}),
+      flag: vi.fn(async (_k: string, f: { url: string }) => {
+        if (f.url === flag.url) { await gate; throw new Error('offline'); }
+        throw new Error('offline');
+      }),
+    };
+    const sender = createFlagSender({ kv, api });
+    const flushing = sender.flush();
+    const later = { url: 'https://b.com/', verdict: 'fine' as const };
+    const sending = sender.send(later);
+    release();
+    await Promise.all([flushing, sending]);
+    expect(await kv.get('flagQueue')).toEqual(expect.arrayContaining([flag, later]));
+  });
+
   it('caps the queue at 200', async () => {
     const kv = memoryKV();
     const api = { registerDevice: vi.fn(async () => { throw new Error('offline'); }), flag: vi.fn() };

@@ -74,5 +74,21 @@ export function createOrchestrator(d: {
     }
   }
 
-  return { run, verdict };
+  /**
+   * Like verdict(), but on a cache miss asks the server once (usually a server cache hit). Used after a flag:
+   * the MV3 worker may have been recycled since the page was scored, taking the in-memory cache with it.
+   */
+  async function refresh(url: string): Promise<Verdict> {
+    if (!cache.has(url) && !(await d.fallback.cached(url))) {
+      try {
+        const r = (await d.api.score([url]))[url];
+        if (r?.status === 'ready') cache.set(url, r.layer1);
+      } catch {
+        // offline: fall back to whatever list/override info we have
+      }
+    }
+    return verdict(url);
+  }
+
+  return { run, verdict, refresh };
 }

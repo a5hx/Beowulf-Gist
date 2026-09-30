@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildContext } from '../src/dom';
 import { findAuthor, scoreHuman } from '../src/human';
-import { blogRecipe, farmRecipe, forumThread, nonNativeHowTo, page } from './fixtures';
+import { blogRecipe, farmRecipe, forumThread, nonNativeHowTo, page, referenceDoc } from './fixtures';
 
 describe('findAuthor', () => {
   it('reads meta author', () => {
@@ -32,6 +32,9 @@ describe('scoreHuman', () => {
     const r = scoreHuman(buildContext(farmRecipe()));
     expect(r.score).toBeLessThan(40);
     expect(r.signals.map((s) => s.id)).toEqual(expect.arrayContaining(['human.generic_author', 'human.stock_images']));
+  });
+  it('missing author evidence is neutral, not negative (authorless reference docs)', () => {
+    expect(scoreHuman(buildContext(referenceDoc())).score).toBeGreaterThanOrEqual(50);
   });
   it('forum and non-native pages get credit for a real voice', () => {
     expect(scoreHuman(buildContext(forumThread())).score).toBeGreaterThanOrEqual(70);

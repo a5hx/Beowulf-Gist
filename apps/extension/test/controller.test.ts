@@ -85,6 +85,19 @@ describe('serp controller', () => {
     expect(document.querySelector('span[data-gist-badge]')).toBeNull();
   });
 
+  it('uses the config "page" selector to detect a results page, so a renamed #rso still reports drift', () => {
+    document.body.innerHTML = '<div id="search"><div id="rso-renamed"><div class="g"><a href="https://a.com/"><h3>T</h3></a></div></div></div>';
+    posted = []; dimmed = []; noMatches = [];
+    ctl = createSerpController({
+      root: document, selectors: { ...cfg, page: '#search' }, base: BASE,
+      port: { post: (m) => posted.push(m), onMessage: (cb) => { deliver = cb; } },
+      flag: async () => null, reportDimmed: () => {}, reportNoMatches: (ver) => noMatches.push(ver),
+      expanded: createExpandedSet(null), debounceMs: 0,
+    });
+    ctl.start();
+    expect(noMatches).toEqual([7]);
+  });
+
   it('does not report no_matches on pages without #rso', () => {
     document.body.innerHTML = '<div id="other"></div>';
     start();

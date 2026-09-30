@@ -25,18 +25,31 @@ export function createFlagSender(d: { kv: KV; api: Pick<Api, 'flag' | 'registerD
     }
   }
 
+  // Every queue read-modify-write runs through this chain, so concurrent sends and flushes can't overwrite each other.
+  let chain: Promise<unknown> = Promise.resolve();
+  const serial = <T>(fn: () => Promise<T>): Promise<T> => {
+    const run = chain.then(fn, fn);
+    chain = run.catch(() => {});
+    return run;
+  };
+  const edit = (fn: (q: PendingFlag[]) => PendingFlag[]) =>
+    serial(async () => d.kv.set(QUEUE, fn((await d.kv.get<PendingFlag[]>(QUEUE)) ?? []).slice(-MAX_QUEUE)));
+
   return {
     async send(f: PendingFlag) {
       if (await trySend(f)) return;
-      const q = (await d.kv.get<PendingFlag[]>(QUEUE)) ?? [];
-      q.push(f);
-      await d.kv.set(QUEUE, q.slice(-MAX_QUEUE));
+      await edit((q) => [...q, f]);
     },
     async flush() {
-      const q = (await d.kv.get<PendingFlag[]>(QUEUE)) ?? [];
+      // Claim the queue, try each flag outside the lock, then put failures back ahead of anything queued meanwhile.
+      let claimed: PendingFlag[] = [];
+      await edit((q) => {
+        claimed = q;
+        return [];
+      });
       const keep: PendingFlag[] = [];
-      for (const f of q) if (!(await trySend(f))) keep.push(f);
-      await d.kv.set(QUEUE, keep);
+      for (const f of claimed) if (!(await trySend(f))) keep.push(f);
+      await edit((q) => [...keep, ...q]);
     },
   };
 }

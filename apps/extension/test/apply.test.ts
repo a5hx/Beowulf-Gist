@@ -33,6 +33,18 @@ describe('applyVerdict', () => {
     expect(r.el.style.opacity).toBe('');
   });
 
+  it('mounts the badge outside transformed wrappers (Google flips span.V9tjod with scaleY(-1))', () => {
+    document.body.innerHTML =
+      '<div id="rso"><div class="g"><div class="b8lM7"><span class="V9tjod" style="transform: scaleY(-1)"><a href="https://a.com/" style="transform: scaleY(-1)"><h3>A</h3></a></span></div></div></div>';
+    const el = document.querySelector<HTMLElement>('.g')!;
+    const flipped = el.querySelector('.V9tjod')!;
+    r = { id: '1', el, anchor: el.querySelector('a')!, url: 'https://a.com/' };
+    applyVerdict(r, verdict(), deps());
+    const host = document.querySelector('span[data-gist-badge]')!;
+    expect(flipped.contains(host)).toBe(false);
+    expect(flipped.nextElementSibling).toBe(host);
+  });
+
   it('dim: fades the result and tags it Filler', () => {
     applyVerdict(r, verdict({ verdict: 'Filler', action: 'dim', confidence: 'high', grade: 25 }), deps());
     expect(r.el.style.opacity).toBe('0.45');

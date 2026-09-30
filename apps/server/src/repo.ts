@@ -12,6 +12,7 @@ export type StoredScore = {
 export type NewFlag = { keyHash: string; urlNorm: string; domain: string; verdict: 'slop' | 'fine'; reason: string | null };
 export type FlagSummaryRow = { domain: string; slop: number; fine: number; devices: number; reasons: Record<string, number> | null; firstSeen: Date; lastSeen: Date };
 export type FailureSummaryRow = { domain: string; reason: string; count: number };
+export type EventSummaryRow = { configVersion: number; event: string; count: number };
 
 export interface Repo {
   getScores(urls: string[], layer1Version: string): Promise<Map<string, StoredScore>>;
@@ -26,6 +27,7 @@ export interface Repo {
   recordEvent(configVersion: number, event: string): Promise<void>;
   flagSummary(): Promise<FlagSummaryRow[]>;
   failureSummary(days: number): Promise<FailureSummaryRow[]>;
+  eventSummary(days: number): Promise<EventSummaryRow[]>;
 }
 
 type ScoreRow = { url_norm: string; layer1_version: string; status: 'ready' | 'failed'; result: Layer1Result | null; fail_reason: FailReason | null; fetched_at: Date };
@@ -126,6 +128,16 @@ export function createRepo(sql: Sql): Repo {
         GROUP BY domain, reason
         ORDER BY count DESC
         LIMIT 100`;
+    },
+
+    async eventSummary(days) {
+      const rows = await sql<{ config_version: number; event: string; count: number }[]>`
+        SELECT config_version, event, sum(count)::int AS count
+        FROM events
+        WHERE day > current_date - ${days}::int
+        GROUP BY config_version, event
+        ORDER BY config_version, event`;
+      return rows.map((r) => ({ configVersion: r.config_version, event: r.event, count: r.count }));
     },
   };
 }

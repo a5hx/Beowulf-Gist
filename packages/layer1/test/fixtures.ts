@@ -119,3 +119,31 @@ export const nonNativeHowTo = () =>
   );
 
 export const tinyPage = () => page('', '<p>Hello world, this page says almost nothing.</p>');
+
+/** Authorless reference documentation (MDN/Python-docs style): no byline or first person, but dense and useful. */
+export const referenceDoc = () =>
+  page(
+    '',
+    `<nav><a href="/">Docs</a><a href="/api">API</a></nav>
+     <main>
+       <h1>json — JSON encoder and decoder</h1>
+       <p>The json module exposes an API for parsing and serializing JSON, as specified in RFC 8259 (December 2017).</p>
+       <h2>Basic usage</h2>
+       <pre><code>json.dumps(obj, *, indent=None, sort_keys=False)</code></pre>
+       <p>Serialize obj to a JSON formatted str. If indent is a non-negative integer, array elements are pretty-printed with that indent level; an indent of 0 inserts only newlines.</p>
+       <pre><code>json.loads(s, *, object_hook=None, parse_float=None)</code></pre>
+       <p>Deserialize s (a str, bytes or bytearray instance containing a JSON document) to a Python object. Raises JSONDecodeError if the data is not valid JSON.</p>
+       <h2>Encoders and decoders</h2>
+       <p>The JSONDecoder class performs the following translations by default: object to dict, array to list, string to str, number (int) to int, number (real) to float, true to True, false to False and null to None.</p>
+       <ol>
+         <li>Call dumps() with sort_keys=True to get deterministic output.</li>
+         <li>Pass separators=(",", ":") to eliminate whitespace for the most compact output.</li>
+         <li>Use ensure_ascii=False to keep non-ASCII characters as-is.</li>
+       </ol>
+       <p>Changed in version 3.6: all optional parameters are now keyword-only. Changed in version 3.9.0: the encoding keyword argument was removed.</p>
+       <h2>Command-line interface</h2>
+       <pre><code>python -m json.tool --sort-keys data.json</code></pre>
+       <p>The json.tool module validates and pretty-prints JSON objects from the command line, reading from stdin when no file is given.</p>
+     </main>
+     <footer>© 2001-2026 Python Software Foundation</footer>`,
+  );

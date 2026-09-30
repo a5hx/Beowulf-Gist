@@ -20,9 +20,10 @@ const DAY = 24 * 60 * 60 * 1000;
 export default defineBackground(() => {
   const api = createApi(API_BASE);
   const lists = createListStore({ kv, api, bundled: bundled as ListBundle, now: Date.now });
-  const ready = lists.load().then(async () => {
-    if (Date.now() - lists.lastSyncedAt() > DAY) await lists.sync();
-  });
+  // Handlers wait only for the local copy; a stale-list sync runs in the background so a slow backend
+  // never delays list-based verdicts (spec §7).
+  const ready = lists.load();
+  void ready.then(() => (Date.now() - lists.lastSyncedAt() > DAY ? lists.sync() : undefined));
   const fallback = createFallback({ kv, hasPermission: hasAllSitesPermission, fetchHtml: fetchHtmlFromDevice, score: scoreHtml, now: Date.now });
   const orchestrator = createOrchestrator({
     api,
@@ -61,7 +62,7 @@ export default defineBackground(() => {
         if (!url) return { verdict: null };
         await setOverride(kv, url, msg.verdict);
         void flags.send({ url, verdict: msg.verdict, reason: msg.reason });
-        return { verdict: await orchestrator.verdict(url) };
+        return { verdict: await orchestrator.refresh(url) };
       }
       case 'dimmed':
         await addDimmed(kv, msg.n, new Date());

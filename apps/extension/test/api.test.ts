@@ -38,6 +38,21 @@ describe('api', () => {
     expect((calls[0]!.init.headers as Record<string, string>).authorization).toBe(`Device ${'k'.repeat(64)}`);
   });
 
+  it('every request carries a timeout signal, so a hanging backend cannot stall the extension (spec §7)', async () => {
+    const { fn, calls } = fakeFetch([
+      Response.json({ results: {} }), new Response(null, { status: 304 }), new Response(null, { status: 201 }),
+      new Response(null, { status: 201 }), new Response(null, { status: 204 }),
+    ]);
+    const api = createApi('https://api.test', fn);
+    await api.score(['https://a.com/']);
+    await api.lists(null);
+    await api.registerDevice('k'.repeat(64));
+    await api.flag('k'.repeat(64), { url: 'https://a.com/', verdict: 'fine' });
+    await api.event({ configVersion: 1, event: 'no_matches' });
+    expect(calls).toHaveLength(5);
+    for (const c of calls) expect(c.init.signal).toBeInstanceOf(AbortSignal);
+  });
+
   it('throws ApiError with the status on non-2xx', async () => {
     const { fn } = fakeFetch([new Response(null, { status: 429 })]);
     await expect(createApi('https://api.test', fn).score(['https://a.com/'])).rejects.toMatchObject({ status: 429 });

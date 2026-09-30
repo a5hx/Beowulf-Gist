@@ -18,6 +18,13 @@ describe('eval lib', () => {
     expect(formatReport(m)).toContain('False-positive rate');
   });
 
+  it('reports the share of ok/solid pages that the current strict rule would still tag Thin (grade < 60)', () => {
+    const m = computeMetrics([row('ok', 59), row('solid', 85), row('ok', 70), row('ok', 20), row('slop', 5)]);
+    expect(m.wouldTag.rate).toBeCloseTo(2 / 4);
+    expect(m.wouldTag.pages.map((r) => r.grade)).toEqual([59, 20]);
+    expect(formatReport(m)).toContain('Thin-tag rate on ok/solid pages (current rule)');
+  });
+
   it('parses JSONL, skipping blank lines, and reports bad lines by number', () => {
     const ok = parseLabels('{"id":"a","url":"https://a.test/","label":"ok","snapshot":"snapshots/a.html","labeledAt":"2026-09-29"}\n\n');
     expect(ok).toHaveLength(1);

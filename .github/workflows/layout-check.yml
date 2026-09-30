@@ -12,4 +12,8 @@ jobs:
         with: { node-version: 20, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm layout:check
+      # Exit 2 = Google served a CAPTCHA (common on CI IPs): inconclusive, so warn instead of failing.
+      - run: |
+          code=0; pnpm layout:check || code=$?
+          if [ "$code" -eq 2 ]; then echo "::warning::Google served a CAPTCHA; layout check inconclusive"; exit 0; fi
+          exit "$code"

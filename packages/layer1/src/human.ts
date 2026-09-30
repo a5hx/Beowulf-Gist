@@ -59,33 +59,37 @@ function countComments(document: Document): number {
   return max;
 }
 
+/**
+ * Starts neutral (50): a missing byline or first-person voice is absence of evidence, not evidence of a farm
+ * (reference docs, encyclopedias). Only positive evidence raises the score; only negative evidence
+ * (a generic "admin" author, stock photos) lowers it.
+ */
 export function scoreHuman(ctx: PageContext): DimensionResult {
   const signals: Signal[] = [];
-  let score = 20;
+  let score = 50;
 
   const author = findAuthor(ctx.document);
   if (author && !GENERIC_AUTHORS.test(author)) {
-    score += 35;
-    signals.push(signal('human.author', `Named author: ${author}`, 35));
+    score += 30;
+    signals.push(signal('human.author', `Named author: ${author}`, 30));
   } else if (author) {
-    signals.push(signal('human.generic_author', `Author listed only as "${author}"`, -35));
+    score -= 25;
+    signals.push(signal('human.generic_author', `Author listed only as "${author}"`, -25));
   } else {
-    signals.push(signal('human.no_author', 'No named author', -35));
+    signals.push(signal('human.no_author', 'No named author', 0));
   }
 
   const text = ctx.mainText.replace(/’/g, "'");
   const fp = text.match(FIRST_PERSON)?.length ?? 0;
   if (ctx.mainWords && (fp / ctx.mainWords) * 100 >= 0.5) {
-    score += 20;
-    signals.push(signal('human.first_person', 'Written from first-hand experience', 20));
-  } else {
-    signals.push(signal('human.no_first_person', 'No first-hand voice', -20));
+    score += 10;
+    signals.push(signal('human.first_person', 'Written from first-hand experience', 10));
   }
 
   const comments = countComments(ctx.document);
   if (comments >= 2) {
-    score += 15;
-    signals.push(signal('human.comments', `${comments} reader comments`, 15));
+    score += 5;
+    signals.push(signal('human.comments', `${comments} reader comments`, 5));
   }
 
   const srcs = new Set(
@@ -94,12 +98,12 @@ export function scoreHuman(ctx: PageContext): DimensionResult {
   const stock = [...srcs].filter((s) => STOCK_IMG.test(s)).length;
   const original = srcs.size - stock;
   if (original >= 3) {
-    score += 10;
-    signals.push(signal('human.images', `${original} original images`, 10));
+    score += 5;
+    signals.push(signal('human.images', `${original} original images`, 5));
   }
   if (stock >= 2 && stock >= srcs.size / 2) {
-    score -= 10;
-    signals.push(signal('human.stock_images', `${stock} stock images`, -10));
+    score -= 15;
+    signals.push(signal('human.stock_images', `${stock} stock images`, -15));
   }
   return { score: clamp(score), signals };
 }

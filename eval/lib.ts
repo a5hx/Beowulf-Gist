@@ -10,6 +10,8 @@ export type Metrics = {
   perLabel: Record<Label, { precision: number | null; recall: number | null; support: number }>;
   /** Pages you labeled ok/solid that Layer 1 alone would dim or collapse under rule B (grade < 40). */
   wouldDim: { falsePositiveRate: number | null; falsePositives: Scored[] };
+  /** Pages you labeled ok/solid that the current strict rule still marks with a Thin tag (grade < 60). */
+  wouldTag: { rate: number | null; pages: Scored[] };
 };
 
 export function parseLabels(text: string): LabelRow[] {
@@ -48,7 +50,13 @@ export function computeMetrics(rows: Scored[]): Metrics {
   }
   const good = rows.filter((r) => r.label === 'ok' || r.label === 'solid');
   const falsePositives = good.filter((r) => r.grade < 40);
-  return { n: rows.length, perLabel, wouldDim: { falsePositiveRate: good.length ? falsePositives.length / good.length : null, falsePositives } };
+  const tagged = good.filter((r) => r.grade < 60);
+  return {
+    n: rows.length,
+    perLabel,
+    wouldDim: { falsePositiveRate: good.length ? falsePositives.length / good.length : null, falsePositives },
+    wouldTag: { rate: good.length ? tagged.length / good.length : null, pages: tagged },
+  };
 }
 
 const pct = (x: number | null) => (x === null ? '  n/a' : `${(x * 100).toFixed(1).padStart(5)}%`);
@@ -61,5 +69,7 @@ export function formatReport(m: Metrics): string {
   }
   lines.push('', `False-positive rate if Layer 1 alone could dim (rule B): ${pct(m.wouldDim.falsePositiveRate)}`);
   for (const fp of m.wouldDim.falsePositives) lines.push(`  FP  grade ${fp.grade}  [${fp.label}]  ${fp.url}`);
+  lines.push('', `Thin-tag rate on ok/solid pages (current rule): ${pct(m.wouldTag.rate)}`);
+  for (const t of m.wouldTag.pages) lines.push(`  TAG grade ${t.grade}  [${t.label}]  ${t.url}`);
   return lines.join('\n');
 }

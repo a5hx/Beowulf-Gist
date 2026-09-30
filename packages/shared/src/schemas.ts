@@ -17,6 +17,8 @@ export const selectorConfigSchema = z
     result: z.string().min(1),
     title: z.string().min(1),
     exclude: z.array(z.string().min(1)),
+    /** Present on every results page; if it matches but no result does, the layout drifted. Default '#rso'. */
+    page: z.string().min(1).optional(),
   })
   .strict();
 

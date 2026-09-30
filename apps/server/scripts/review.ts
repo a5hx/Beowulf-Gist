@@ -16,5 +16,7 @@ console.table(
 );
 console.log('\n== Fetch failures, last 7 days (top 100) ==');
 console.table(await repo.failureSummary(7));
+console.log('\n== Layout drift reports (no_matches), last 7 days, by selector config version ==');
+console.table(await repo.eventSummary(7));
 console.log('\nDecisions go into data/domains/*.json via PR, then `pnpm lists:build && pnpm lists:publish`.');
 await sql.end();

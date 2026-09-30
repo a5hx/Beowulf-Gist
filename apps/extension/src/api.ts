@@ -14,11 +14,15 @@ export type Api = {
   event(body: { configVersion: number; event: 'no_matches' }): Promise<void>;
 };
 
+/** No call may hang the extension: a slow backend degrades to list-only verdicts (spec §7). */
+const TIMEOUT_MS = 8000;
+
 export function createApi(base: string, fetchFn: typeof fetch = (input, init) => fetch(input, init)): Api {
   const post = async (path: string, body: unknown, extraHeaders: Record<string, string> = {}) => {
     const res = await fetchFn(`${base}${path}`, {
       method: 'POST',
       credentials: 'omit',
+      signal: AbortSignal.timeout(TIMEOUT_MS),
       headers: { 'content-type': 'application/json', ...extraHeaders },
       body: JSON.stringify(body),
     });
@@ -32,7 +36,7 @@ export function createApi(base: string, fetchFn: typeof fetch = (input, init) =>
       return ((await res.json()) as { results: Record<string, ScoreItem> }).results;
     },
     async lists(etag) {
-      const res = await fetchFn(`${base}/lists`, { credentials: 'omit', headers: etag ? { 'if-none-match': etag } : {} });
+      const res = await fetchFn(`${base}/lists`, { credentials: 'omit', signal: AbortSignal.timeout(TIMEOUT_MS), headers: etag ? { 'if-none-match': etag } : {} });
       if (res.status === 304) return { status: 304 };
       if (!res.ok) throw new ApiError(res.status);
       return { status: 200, bundle: await res.json(), etag: res.headers.get('etag') };

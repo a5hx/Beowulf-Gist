@@ -101,6 +101,19 @@ describe('orchestrator', () => {
     expect(t.api.score.mock.calls[1]![0]).toHaveLength(5);
   });
 
+  it('refresh() re-fetches Layer 1 when the worker restarted and lost its cache (flag after idle)', async () => {
+    const t = setup([{ [OK]: { status: 'ready', layer1: layer1(70) } }], { overrides: { [OK]: 'fine' } });
+    expect(await t.orch.refresh(OK)).toMatchObject({ grade: 70, confidence: 'low', userOverride: 'fine' });
+    expect(t.api.score).toHaveBeenCalledWith([OK]);
+    await t.orch.refresh(OK);
+    expect(t.api.score).toHaveBeenCalledTimes(1); // cached now
+  });
+
+  it('refresh() still answers from the list when the server is unreachable', async () => {
+    const t = setup([new Error('offline')]);
+    expect(await t.orch.refresh(FARM)).toMatchObject({ confidence: 'high', action: 'collapse' });
+  });
+
   it('verdict() reflects the user override', async () => {
     const t = setup([], { overrides: { [FARM]: 'fine' } });
     expect(await t.orch.verdict(FARM)).toMatchObject({ action: 'none', userOverride: 'fine' });

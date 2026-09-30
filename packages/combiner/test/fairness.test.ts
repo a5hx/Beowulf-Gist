@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { scoreHtml } from '@gist/layer1';
 import type { ListEntry } from '@gist/shared';
-import { farmRecipe, forumThread, nonNativeHowTo } from '@gist/layer1/fixtures';
+import { farmRecipe, forumThread, nonNativeHowTo, referenceDoc } from '@gist/layer1/fixtures';
 import { combine } from '../src/index';
 
 const at = new Date('2026-09-29T00:00:00Z');
@@ -23,6 +23,12 @@ describe('fairness (spec §9)', () => {
       expect(withoutStyle - withStyle).toBeLessThanOrEqual(5);
     },
   );
+
+  it('authorless reference docs are not tagged Thin by Layer 1 alone (grade >= 60)', () => {
+    const v = combine({ layer1: scoreHtml(referenceDoc(), at), entry: null, override: null, greenDot: false });
+    expect(v.grade).toBeGreaterThanOrEqual(60);
+    expect(v.action).toBe('none');
+  });
 
   it('farm page: Layer 1 alone only tags it; with a farm list entry it collapses', () => {
     const layer1 = scoreHtml(farmRecipe(), at);

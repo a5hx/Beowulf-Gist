@@ -91,5 +91,10 @@ describe('repo', () => {
     await repo.recordEvent(1, 'no_matches');
     const [row] = await sql`SELECT count FROM events WHERE config_version = 1`;
     expect(row?.count).toBe(2);
+    await repo.recordEvent(2, 'no_matches');
+    expect(await repo.eventSummary(7)).toEqual([
+      { configVersion: 1, event: 'no_matches', count: 2 },
+      { configVersion: 2, event: 'no_matches', count: 1 },
+    ]);
   });
 });

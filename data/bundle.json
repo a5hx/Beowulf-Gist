@@ -1,8 +1,8 @@
 {
-  "version": "7bdedb8873c7",
+  "version": "ffe1b0666048",
   "domains": [],
   "selectors": {
-    "version": 1,
+    "version": 2,
     "result": "#rso div.MjjYud, #rso div.g",
     "title": "h3",
     "exclude": [
@@ -15,6 +15,7 @@
       "related-question-pair",
       "[data-initq]",
       "block-component"
-    ]
+    ],
+    "page": "#search"
   }
 }
