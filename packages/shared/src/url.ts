@@ -1,4 +1,4 @@
-const TRACKING = [/^utm_/i, /^gclid$/i, /^fbclid$/i, /^mc_cid$/i, /^mc_eid$/i];
+const TRACKING = [/^utm_/i, /^gclid$/i, /^srsltid$/i, /^fbclid$/i, /^mc_cid$/i, /^mc_eid$/i];
 
 /** Canonical form used as the cache key everywhere. Returns null for anything that is not http(s). */
 export function normalizeUrl(input: string): string | null {

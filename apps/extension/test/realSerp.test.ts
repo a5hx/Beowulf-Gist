@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+// @vitest-environment-options {"settings":{"disableJavaScriptEvaluation":true,"disableJavaScriptFileLoading":true,"disableCSSFileLoading":true,"disableIframePageLoading":true,"handleDisabledFileLoadingAsSuccess":true}}
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +15,7 @@ const files = readdirSync(dir).filter((f) => f.startsWith('serp-') && f.endsWith
 
 describe.skipIf(files.length === 0)('real Google SERPs', () => {
   it.each(files)('%s: finds 5+ organic results, none Google-internal, no duplicates of ads', (file) => {
+    // Scripts and subresource loading are disabled for this file (see the environment options at the top).
     document.documentElement.innerHTML = readFileSync(`${dir}${file}`, 'utf8');
     const results = readResults(document, cfg, 'https://www.google.com/search?q=x');
     expect(results.length).toBeGreaterThanOrEqual(5);

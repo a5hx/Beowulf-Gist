@@ -14,6 +14,9 @@ describe('normalizeUrl', () => {
       'https://e.com/a?a=1&b=2',
     );
   });
+  it("removes Google's per-search srsltid param", () => {
+    expect(normalizeUrl('https://shop.test/p?srsltid=AU7gw4WzkIV8&id=2')).toBe('https://shop.test/p?id=2');
+  });
   it('drops an empty query entirely', () => {
     expect(normalizeUrl('https://e.com/a?utm_medium=x')).toBe('https://e.com/a');
   });
